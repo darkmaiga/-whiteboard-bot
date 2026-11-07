@@ -11,6 +11,7 @@ from googleapiclient.discovery import build
 import textwrap
 import random
 from PIL import Image, ImageDraw, ImageFont
+import numpy as np
 
 # 1. Récupération des clés
 GEMINI_KEY = os.environ['GEMINI_API_KEY']
@@ -51,10 +52,11 @@ async def make_audio():
 asyncio.run(make_audio())
 
 # 5. Choix du fond "Tableau Blanc" (Blanc, Gris clair, ou Beige)
-colors = ["#FFFFFF", "#F4F4F4", "#FDF5E6"]
+# On utilise des tuples RGB pour éviter l'erreur de dimension
+colors = [(255, 255, 255), (244, 244, 244), (253, 245, 230)]
 bg_color = random.choice(colors)
 
-# 6. Fonction pour créer l'image d'un bloc de mots (Texte NOIR sur fond clair)
+# 6. Fonction pour créer l'image d'un bloc de mots
 def create_word_image(text, filename="temp_word.png"):
     img_width = 1080
     img_height = 300
@@ -63,7 +65,6 @@ def create_word_image(text, filename="temp_word.png"):
     
     font_size = 90
     try:
-        # On télécharge une belle police
         font_url = "https://github.com/google/fonts/raw/main/ofl/montserrat/Montserrat%5Bwght%5D.ttf"
         font_data = requests.get(font_url).content
         with open("Montserrat.ttf", "wb") as f:
@@ -78,7 +79,6 @@ def create_word_image(text, filename="temp_word.png"):
     x = (img_width - w) / 2
     y = (img_height - h) / 2
         
-    # Texte noir (pour le style tableau blanc) avec un léger contour blanc
     draw.text((x, y), text, font=font, fill="black", stroke_width=2, stroke_fill="white")
     img.save(filename)
     return filename
@@ -87,8 +87,9 @@ def create_word_image(text, filename="temp_word.png"):
 voice_audio = AudioFileClip("audio.mp3")
 duration = voice_audio.duration
 
-# Création du fond uni
-bg_clip = ColorClip(size=(1080, 1920), color=bg_color).set_duration(duration)
+# Création du fond uni en 3 dimensions (RGB) pour éviter le bug
+bg_frame = np.full((1920, 1080, 3), bg_color, dtype=np.uint8)
+bg_clip = ImageClip(bg_frame).set_duration(duration)
 
 # Découpage en blocs de 3 mots
 words = script_text.replace('\n', ' ').split()
@@ -114,7 +115,7 @@ creds = Credentials(None, refresh_token=REFRESH_TOKEN, token_uri="https://oauth2
 youtube = build('youtube', 'v3', credentials=creds)
 body = {
     'snippet': {'title': f'{chosen_topic[:80]} 💡 #shorts', 'description': f'{chosen_topic}. Automated finance tips.', 'tags': ['finance', 'money', 'shorts'], 'categoryId': '27'},
-    'status': {'privacyStatus': 'public', 'selfDeclaredMadeForUserKids': False}
+    'status': {'privacyStatus': 'public', 'selfDeclaredMadeForKids': False}
 }
 media = MediaFileUpload("short.mp4", mimetype='video/mp4', resumable=True)
 request = youtube.videos().insert(part='snippet,status', body=body, media_body=media)
