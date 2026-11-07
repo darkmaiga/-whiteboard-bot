@@ -26,7 +26,13 @@ async function generateAnimation() {
     console.log("2. Téléchargement de l'image de la main...");
     // On utilise une image de main très fiable (Wikipédia)
     const handUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Hand_holding_a_pen.svg/512px-Hand_holding_a_pen.svg.png';
-    const handResponse = await axios.get(handUrl, { responseType: 'arraybuffer' });
+    
+    // 👉 LA CORRECTION EST ICI : On ajoute un User-Agent pour tromper le blocage de Wikipédia
+    const handResponse = await axios.get(handUrl, { 
+        responseType: 'arraybuffer',
+        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+    });
+    
     fs.writeFileSync('hand.png', handResponse.data);
     const handImg = await loadImage('hand.png');
 
