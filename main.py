@@ -37,31 +37,28 @@ async def make_audio():
     await communicate.save("audio.mp3")
 asyncio.run(make_audio())
 
-# 5. Images (On va en prendre 2 pour varier)
-# Pièce d'or
+# 5. Images
 img_data = requests.get("https://cdn-icons-png.flaticon.com/512/217/217853.png").content
 with open("coin.png", "wb") as handler:
     handler.write(img_data)
 
-# Graphique qui monte
 img_data2 = requests.get("https://cdn-icons-png.flaticon.com/512/2936/2936886.png").content
 with open("chart.png", "wb") as handler:
     handler.write(img_data2)
 
-# 6. Fonction texte (On réduit la police à 60 pour que ça rentre)
+# 6. Fonction texte
 def create_text_image(text, is_yellow=False, filename="temp_text.png", is_hook=False):
     img_width, img_height = 1080, 400
     img = Image.new('RGBA', (img_width, img_height), (0, 0, 0, 0))
     draw = ImageDraw.Draw(img)
     
-    font_size = 60 if is_hook else 75 # Plus petit pour éviter que ça dépasse
+    font_size = 60 if is_hook else 75
     font_path = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
     try:
         font = ImageFont.truetype(font_path, font_size)
     except:
         font = ImageFont.load_default()
     
-    # On découpe le texte pour qu'il tienne dans l'écran (max 25 caractères par ligne)
     lines = textwrap.wrap(text, width=25)
     total_height = len(lines) * (font_size + 10)
     y_start = (img_height - total_height) / 2
@@ -80,25 +77,27 @@ def create_text_image(text, is_yellow=False, filename="temp_text.png", is_hook=F
 voice_audio = AudioFileClip("audio.mp3")
 duration = voice_audio.duration
 
-# Fond noir profond
 bg_frame = np.full((1920, 1080, 3), (10, 10, 10), dtype=np.uint8)
 bg_clip = ImageClip(bg_frame).set_duration(duration)
 
-# Hook en haut
 hook_img = create_text_image(chosen_topic.upper(), filename="hook.png", is_hook=True)
 hook_clip = ImageClip(hook_img).set_position(('center', 100)).set_duration(duration)
 
-# 👉 ANIMATION DES OBJETS
-# La pièce d'or tourne sur elle-même (rotation de 90 degrés par seconde)
-coin_clip = ImageClip("coin.png").set_position(('center', 600)).set_duration(duration).resize(height=300)
-coin_clip = coin_clip.rotate(lambda t: 90 * t) 
+# 👉 ANIMATION SANS BUG : Pulsation et flottement
+# La pièce d'or "respire" (grossit et rétrécit) et flotte
+coin_clip = ImageClip("coin.png").set_duration(duration).resize(height=300)
+# Effet de flottement (monte et descend de 20 pixels)
+coin_clip = coin_clip.set_position(lambda t: ('center', 600 + 20 * np.sin(t * 3)))
+# Effet de pulsation (grossit de 10%)
+coin_clip = coin_clip.resize(lambda t: 1 + 0.1 * np.sin(t * 5))
 
-# Le graphique apparaît au bout de 3 secondes et fait un effet de zoom
-chart_clip = ImageClip("chart.png").set_position(('center', 600)).set_duration(duration - 3).resize(height=400)
-chart_clip = chart_clip.set_start(3) # Il apparaît à la 3ème seconde
-chart_clip = chart_clip.resize(lambda t: 1 + 0.5 * np.exp(-t*5)) # Effet de zoom à l'apparition
+# Le graphique apparaît à la 4ème seconde avec un effet de zoom (pop-in)
+chart_clip = ImageClip("chart.png").set_duration(duration - 4).resize(height=400)
+chart_clip = chart_clip.set_start(4)
+# Effet d'apparition (grossit rapidement puis se stabilise)
+chart_clip = chart_clip.resize(lambda t: 0.5 + 0.5 * np.minimum(1, t * 5))
 
-# Sous-titres en bas
+# Sous-titres
 words = script_text.replace('\n', ' ').split()
 chunks = [" ".join(words[i:i+3]) for i in range(0, len(words), 3)]
 time_per_chunk = duration / len(chunks)
@@ -111,18 +110,13 @@ for i, chunk in enumerate(chunks):
     text_img_file = f"chunk_{i}.png"
     create_text_image(chunk.upper(), is_yellow, text_img_file)
     
-    # On place le texte assez bas pour ne pas gêner l'image
     txt_clip = ImageClip(text_img_file).set_position(('center', 1400)).set_start(current_time).set_duration(time_per_chunk)
-    
-    # Effet de pulsation sur le texte
+    # Pulsation légère du texte
     txt_clip = txt_clip.resize(lambda t: 1 + 0.05 * np.sin(t * 10))
     
     subtitles.append(txt_clip)
     current_time += time_per_chunk
 
-# Assemblage (On affiche la pièce, puis le graphique, et on les remplace)
-# Note : Pour faire simple, on affiche la pièce sur toute la durée, et le graphique par-dessus à partir de 3s
-# (Pour faire disparaître la pièce, il faudrait coder `set_end`, ce qui est plus complexe)
 video = CompositeVideoClip([bg_clip, hook_clip, coin_clip, chart_clip] + subtitles).set_audio(voice_audio)
 video.write_videofile("short.mp4", fps=24, codec="libx264", audio_codec="aac", preset="ultrafast")
 
