@@ -8,7 +8,7 @@ const axios = require('axios');
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-// Configuration du texte et de la vidéo
+// Configuration
 const text = "PAY YOURSELF FIRST. BEFORE YOU PAY YOUR RENT, MOVE 10% OF YOUR INCOME INTO SAVINGS.";
 const words = text.split(" ");
 const width = 1080;
@@ -24,13 +24,12 @@ async function generateAnimation() {
     fs.writeFileSync('audio.mp3', Buffer.from(audioBase64, 'base64'));
 
     console.log("2. Téléchargement de l'image de la main...");
-    // On utilise une image de main très fiable (Wikipédia)
-    const handUrl = 'https://upload.wikimedia.org/wikipedia/commons/thumb/1/1e/Hand_holding_a_pen.svg/512px-Hand_holding_a_pen.svg.png';
+    // 👉 CORRECTION : Lien hébergé sur GitHub (100% fiable, ne bloque pas)
+    const handUrl = 'https://raw.githubusercontent.com/googlefonts/noto-emoji/main/png/512/emoji_u270d.png';
     
-    // 👉 LA CORRECTION EST ICI : On ajoute un User-Agent pour tromper le blocage de Wikipédia
     const handResponse = await axios.get(handUrl, { 
         responseType: 'arraybuffer',
-        headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)' }
+        headers: { 'User-Agent': 'Mozilla/5.0' }
     });
     
     fs.writeFileSync('hand.png', handResponse.data);
@@ -65,7 +64,7 @@ async function generateAnimation() {
         // Position de la main (suit le dernier mot)
         let lastLineLength = lines[lines.length - 1].length * 40; 
         let handX = Math.min(100 + lastLineLength, width - 200);
-        let handY = yStart + ((lines.length - 1) * 100) - 100; 
+        let handY = yStart + ((lines.length - 1) * 100) - 150; 
 
         // On dessine la main par-dessus
         ctx.drawImage(handImg, handX, handY, 250, 250);
@@ -142,5 +141,5 @@ generateAnimation()
     .then(() => uploadToYouTube())
     .catch(err => {
         console.error("Erreur :", err);
-        process.exit(1); // Force l'échec si ça plante
+        process.exit(1);
     });
