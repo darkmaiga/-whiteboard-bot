@@ -1,7 +1,7 @@
-name: Whiteboard Finance Bot
+name: Whiteboard Animator Bot
 on:
   schedule:
-    - cron: '0 6,10,14,18,22 * * *' # Tourne 5 fois par jour
+    - cron: '0 6,10,14,18,22 * * *'
   workflow_dispatch: 
 jobs:
   build:
@@ -9,18 +9,23 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v3
-      - name: Set up Python
-        uses: actions/setup-python@v4
+      - name: Setup Node.js
+        uses: actions/setup-node@v3
         with:
-          python-version: '3.10'
+          node-version: '20'
+      - name: Install pnpm
+        run: npm install -g pnpm
       - name: Install dependencies
         run: |
           sudo apt-get update && sudo apt-get install -y ffmpeg
-          pip install -r requirements.txt
-      - name: Run bot
+          # Ici on installe les outils du projet Animator
+          pnpm install
+      - name: Generate Video
         env:
           GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-          YT_CLIENT_ID: ${{ secrets.YT_CLIENT_ID }}
-          YT_CLIENT_SECRET: ${{ secrets.YT_CLIENT_SECRET }}
-          YT_REFRESH_TOKEN: ${{ secrets.YT_REFRESH_TOKEN }}
-        run: python main.py
+        run: |
+          # Commande du projet Animator pour générer la vidéo
+          npx animator-cli generate "How to save money" --output video.mp4
+      - name: Upload to YouTube
+        # ... (on rajoutera le script d'upload après)
+        run: echo "Vidéo générée, prête à être uploadée"
