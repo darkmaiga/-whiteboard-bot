@@ -1,0 +1,14 @@
+{
+  "name": "whiteboard-bot",
+  "version": "1.0.0",
+  "description": "Automated Whiteboard Animation",
+  "main": "index.js",
+  "scripts": {
+    "start": "node index.js"
+  },
+  "dependencies": {
+    "canvas": "^2.11.2",
+    "fluent-ffmpeg": "^2.1.2",
+    "roughjs": "^6.5.6"
+  }
+}
