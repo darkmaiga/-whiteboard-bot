@@ -13,19 +13,9 @@ jobs:
         uses: actions/setup-node@v3
         with:
           node-version: '20'
-      - name: Install pnpm
-        run: npm install -g pnpm
       - name: Install dependencies
         run: |
           sudo apt-get update && sudo apt-get install -y ffmpeg
-          # Ici on installe les outils du projet Animator
-          pnpm install
-      - name: Generate Video
-        env:
-          GEMINI_API_KEY: ${{ secrets.GEMINI_API_KEY }}
-        run: |
-          # Commande du projet Animator pour générer la vidéo
-          npx animator-cli generate "How to save money" --output video.mp4
-      - name: Upload to YouTube
-        # ... (on rajoutera le script d'upload après)
-        run: echo "Vidéo générée, prête à être uploadée"
+          npm install
+      - name: Run bot
+        run: node index.js
