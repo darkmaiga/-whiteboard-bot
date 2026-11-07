@@ -1,39 +1,61 @@
-const { createCanvas, loadImage } = require('canvas');
+const { createCanvas } = require('canvas');
 const fs = require('fs');
 const ffmpeg = require('fluent-ffmpeg');
 const ffmpegPath = require('ffmpeg-static');
 const googleTTS = require('google-tts-api');
 const { google } = require('googleapis');
-const axios = require('axios');
 
 ffmpeg.setFfmpegPath(ffmpegPath);
 
-// Configuration
 const text = "PAY YOURSELF FIRST. BEFORE YOU PAY YOUR RENT, MOVE 10% OF YOUR INCOME INTO SAVINGS.";
 const words = text.split(" ");
 const width = 1080;
 const height = 1920;
 const framesDir = './frames';
 
-// Créer le dossier pour les images
 if (!fs.existsSync(framesDir)) fs.mkdirSync(framesDir);
+
+// 🎨 FONCTION QUI DESSINE LA MAIN (Zéro lien externe, 100% fiable)
+function drawHand(ctx, x, y) {
+    // Le stylo (une ligne inclinée)
+    ctx.beginPath();
+    ctx.moveTo(x + 50, y + 100);
+    ctx.lineTo(x - 50, y - 50);
+    ctx.lineWidth = 8;
+    ctx.strokeStyle = '#333333';
+    ctx.stroke();
+
+    // La main (un cercle pour la paume)
+    ctx.beginPath();
+    ctx.arc(x + 70, y + 120, 60, 0, Math.PI * 2);
+    ctx.fillStyle = '#FFE0BD'; // Couleur de peau basique
+    ctx.fill();
+    ctx.lineWidth = 4;
+    ctx.strokeStyle = '#D2A679';
+    ctx.stroke();
+
+    // Les doigts (petits rectangles)
+    ctx.fillStyle = '#FFE0BD';
+    ctx.strokeStyle = '#D2A679';
+    ctx.lineWidth = 4;
+    
+    // Pouce
+    ctx.beginPath();
+    ctx.ellipse(x + 20, y + 70, 15, 30, Math.PI / 4, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+    
+    // Index
+    ctx.beginPath();
+    ctx.ellipse(x + 70, y + 60, 15, 40, 0, 0, Math.PI * 2);
+    ctx.fill();
+    ctx.stroke();
+}
 
 async function generateAnimation() {
     console.log("1. Génération de la voix off...");
     const audioBase64 = await googleTTS.getAudioBase64(text, { lang: 'en', slow: false, host: 'https://translate.google.com' });
     fs.writeFileSync('audio.mp3', Buffer.from(audioBase64, 'base64'));
-
-    console.log("2. Téléchargement de l'image de la main...");
-    // 👉 CORRECTION : Lien hébergé sur GitHub (100% fiable, ne bloque pas)
-    const handUrl = 'https://raw.githubusercontent.com/googlefonts/noto-emoji/main/png/512/emoji_u270d.png';
-    
-    const handResponse = await axios.get(handUrl, { 
-        responseType: 'arraybuffer',
-        headers: { 'User-Agent': 'Mozilla/5.0' }
-    });
-    
-    fs.writeFileSync('hand.png', handResponse.data);
-    const handImg = await loadImage('hand.png');
 
     const canvas = createCanvas(width, height);
     const ctx = canvas.getContext('2d');
@@ -50,7 +72,6 @@ async function generateAnimation() {
         ctx.textAlign = 'left';
         ctx.textBaseline = 'middle';
 
-        // Affichage du texte mot par mot
         let displayText = words.slice(0, i + 1).join(" ");
         const wordsPerLine = 4;
         const lines = displayText.match(new RegExp(`(\\S+\\s?){1,${wordsPerLine}}`, 'g')) || [];
@@ -61,15 +82,14 @@ async function generateAnimation() {
             ctx.fillText(line.trim(), 100, yStart + (index * 100));
         });
 
-        // Position de la main (suit le dernier mot)
+        // Position de la main
         let lastLineLength = lines[lines.length - 1].length * 40; 
-        let handX = Math.min(100 + lastLineLength, width - 200);
-        let handY = yStart + ((lines.length - 1) * 100) - 150; 
+        let handX = Math.min(100 + lastLineLength, width - 300);
+        let handY = yStart + ((lines.length - 1) * 100) - 100; 
 
-        // On dessine la main par-dessus
-        ctx.drawImage(handImg, handX, handY, 250, 250);
+        // On appelle notre fonction de dessin de main
+        drawHand(ctx, handX, handY);
 
-        // Sauvegarde
         const buffer = canvas.toBuffer('image/png');
         fs.writeFileSync(`${framesDir}/frame_${String(i).padStart(4, '0')}.png`, buffer);
     }
@@ -136,7 +156,6 @@ async function uploadToYouTube() {
     console.log("Vidéo publiée avec succès ! ID: " + res.data.id);
 }
 
-// Lancement
 generateAnimation()
     .then(() => uploadToYouTube())
     .catch(err => {
