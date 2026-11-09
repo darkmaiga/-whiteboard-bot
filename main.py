@@ -13,15 +13,14 @@ import numpy as np
 import textwrap
 import json
 
-# 1. Clés
+# 1. Clés (Plus besoin de Pixabay !)
 GEMINI_KEY = os.environ['GEMINI_API_KEY']
-PIXABAY_KEY = os.environ['PIXABAY_API_KEY']
 CLIENT_ID = os.environ['YT_CLIENT_ID']
 CLIENT_SECRET = os.environ['YT_CLIENT_SECRET']
 REFRESH_TOKEN = os.environ['YT_REFRESH_TOKEN']
 
 # 2. Sujet
-TOPICS = ["Why the middle class is getting poorer", "The hidden truth about the banking system", "The biggest financial scam in history"]
+TOPICS = ["Why the middle class is getting poorer", "The hidden truth about the banking system", "The biggest financial scam in history", "How inflation steals your wealth"]
 chosen_topic = random.choice(TOPICS)
 
 # 3. Script et Mots-clés avec Gemini
@@ -29,12 +28,11 @@ genai.configure(api_key=GEMINI_KEY)
 model = genai.GenerativeModel('gemini-3.1-flash-lite')
 prompt = f"""
 Write a hard-hitting 80-word script about: '{chosen_topic}'. English. ONLY the spoken text.
-Also, provide 3 English keywords (1 word each) to search for relevant images (e.g., money, bank, graph, scam).
+Also, provide 3 English keywords (1 word each) for images. Choose ONLY from this list: [money, bank, graph, scam, house, car, inflation, gold].
 Return the result STRICTLY as a JSON object with keys: "script" and "keywords" (list of strings).
 """
 try:
     response = model.generate_content(prompt).text
-    # Nettoyage du JSON au cas où l'IA ajoute des balises markdown
     response = response.replace("```json", "").replace("```", "").strip()
     data = json.loads(response)
     script_text = data['script']
@@ -42,10 +40,10 @@ try:
 except Exception as e:
     print(f"Erreur Gemini : {e}")
     script_text = "The system is designed to keep you poor. But there is a way out. Pay yourself first. Invest in assets, not liabilities. Start today."
-    keywords = ["money", "bank", "chart"]
+    keywords = ["money", "bank", "graph"]
 
 print(f"Script : {script_text}")
-print(f"Mots-clés pour les images : {keywords}")
+print(f"Mots-clés : {keywords}")
 
 # 4. Voix off
 async def make_audio():
@@ -53,35 +51,31 @@ async def make_audio():
     await communicate.save("audio.mp3")
 asyncio.run(make_audio())
 
-# 5. Téléchargement des images via Pixabay
-def download_image(keyword, filename):
-    # On cherche des illustrations vectorielles (fond transparent ou uni)
-    url = f"https://pixabay.com/api/?key={PIXABAY_KEY}&q={keyword}&image_type=vector&orientation=vertical&per_page=3"
-    response = requests.get(url).json()
-    
-    if response['hits']:
-        img_url = response['hits'][0]['largeImageURL']
-        print(f"Image trouvée pour '{keyword}' : {img_url}")
-        img_data = requests.get(img_url).content
-        with open(filename, "wb") as handler:
-            handler.write(img_data)
-        return True
-    else:
-        print(f"Aucune image trouvée pour '{keyword}'")
-        return False
+# 5. LA BANQUE D'IMAGES INTÉGRÉE (Liens directs, 100% fiables)
+IMAGE_DB = {
+    "money": "https://cdn-icons-png.flaticon.com/512/217/217853.png",
+    "bank": "https://cdn-icons-png.flaticon.com/512/2830/2830305.png",
+    "graph": "https://cdn-icons-png.flaticon.com/512/2936/2936886.png",
+    "scam": "https://cdn-icons-png.flaticon.com/512/1041/1041888.png",
+    "house": "https://cdn-icons-png.flaticon.com/512/263/263115.png",
+    "car": "https://cdn-icons-png.flaticon.com/512/3097/3097180.png",
+    "inflation": "https://cdn-icons-png.flaticon.com/512/3710/3710277.png",
+    "gold": "https://cdn-icons-png.flaticon.com/512/272/272525.png"
+}
 
-# On télécharge 3 images basées sur les mots-clés
+# Téléchargement des images correspondantes
 img_files = []
 for i, kw in enumerate(keywords[:3]):
+    kw = kw.lower()
+    if kw not in IMAGE_DB:
+        kw = "money" # Sécurité si l'IA invente un mot
+    img_url = IMAGE_DB[kw]
     filename = f"img_{i}.png"
-    if download_image(kw, filename):
-        img_files.append(filename)
-    else:
-        # Image de secours (pièce d'or)
-        data = requests.get("https://cdn-icons-png.flaticon.com/512/217/217853.png").content
-        with open(filename, "wb") as f:
-            f.write(data)
-        img_files.append(filename)
+    print(f"Téléchargement de l'image pour '{kw}'...")
+    img_data = requests.get(img_url).content
+    with open(filename, "wb") as handler:
+        handler.write(img_data)
+    img_files.append(filename)
 
 # 6. Fonction texte
 def create_text_image(text, is_yellow=False, filename="temp_text.png", is_hook=False):
@@ -116,16 +110,13 @@ bg_clip = ColorClip(size=(1080, 1920), color=(10, 10, 10)).set_duration(duration
 hook_img = create_text_image(chosen_topic.upper(), filename="hook.png", is_hook=True)
 hook_clip = ImageClip(hook_img).set_position(('center', 150)).set_duration(duration)
 
-# 👉 GESTION DES IMAGES (Apparition et disparition)
-# Image 1 : 0s à 4s
+# Gestion des images (chacune à un endroit différent, sans superposition)
 img1 = ImageClip(img_files[0]).resize(height=300).set_start(0).set_end(4).set_position((150, 600))
 img1 = img1.resize(lambda t: 1 + 0.1 * np.sin(t * 5))
 
-# Image 2 : 4s à 8s
 img2 = ImageClip(img_files[1]).resize(height=300).set_start(4).set_end(8).set_position((650, 1000))
 img2 = img2.resize(lambda t: 0.5 + 0.5 * np.minimum(1, t * 5))
 
-# Image 3 : 8s jusqu'à la fin
 img3 = ImageClip(img_files[2]).resize(height=350).set_start(8).set_duration(duration - 8).set_position((200, 800))
 img3 = img3.set_position(lambda t: (200, 800 + 20 * np.sin(t * 3)))
 
