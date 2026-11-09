@@ -13,14 +13,20 @@ import numpy as np
 import textwrap
 import json
 
-# 1. Clés (Plus besoin de Pixabay !)
+# 1. Clés
 GEMINI_KEY = os.environ['GEMINI_API_KEY']
+PIXABAY_KEY = os.environ['PIXABAY_API_KEY']
 CLIENT_ID = os.environ['YT_CLIENT_ID']
 CLIENT_SECRET = os.environ['YT_CLIENT_SECRET']
 REFRESH_TOKEN = os.environ['YT_REFRESH_TOKEN']
 
 # 2. Sujet
-TOPICS = ["Why the middle class is getting poorer", "The hidden truth about the banking system", "The biggest financial scam in history", "How inflation steals your wealth"]
+TOPICS = [
+    "Why the middle class is getting poorer",
+    "The hidden truth about the banking system",
+    "The biggest financial scam in history",
+    "How inflation steals your wealth"
+]
 chosen_topic = random.choice(TOPICS)
 
 # 3. Script et Mots-clés avec Gemini
@@ -51,33 +57,35 @@ async def make_audio():
     await communicate.save("audio.mp3")
 asyncio.run(make_audio())
 
-# 5. LA BANQUE D'IMAGES INTÉGRÉE (Liens directs, 100% fiables)
-IMAGE_DB = {
-    "money": "https://cdn-icons-png.flaticon.com/512/217/217853.png",
-    "bank": "https://cdn-icons-png.flaticon.com/512/2830/2830305.png",
-    "graph": "https://cdn-icons-png.flaticon.com/512/2936/2936886.png",
-    "scam": "https://cdn-icons-png.flaticon.com/512/1041/1041888.png",
-    "house": "https://cdn-icons-png.flaticon.com/512/263/263115.png",
-    "car": "https://cdn-icons-png.flaticon.com/512/3097/3097180.png",
-    "inflation": "https://cdn-icons-png.flaticon.com/512/3710/3710277.png",
-    "gold": "https://cdn-icons-png.flaticon.com/512/272/272525.png"
-}
+# 5. Téléchargement des images via Pixabay
+def download_pixabay_image(keyword, filename):
+    # On cherche des illustrations (vectorielles) pour un rendu plus propre
+    url = f"https://pixabay.com/api/?key={PIXABAY_KEY}&q={keyword}&image_type=vector&orientation=vertical&per_page=3"
+    response = requests.get(url).json()
+    
+    if response['hits']:
+        img_url = response['hits'][0]['largeImageURL']
+        print(f"Image Pixabay trouvée pour '{keyword}' : {img_url}")
+        img_data = requests.get(img_url).content
+        with open(filename, "wb") as handler:
+            handler.write(img_data)
+        return True
+    else:
+        print(f"Aucune image Pixabay pour '{keyword}', utilisation d'une icône de secours.")
+        # Image de secours (pièce d'or)
+        data = requests.get("https://cdn-icons-png.flaticon.com/512/217/217853.png").content
+        with open(filename, "wb") as f:
+            f.write(data)
+        return False
 
-# Téléchargement des images correspondantes
+# On télécharge les 3 images
 img_files = []
 for i, kw in enumerate(keywords[:3]):
-    kw = kw.lower()
-    if kw not in IMAGE_DB:
-        kw = "money" # Sécurité si l'IA invente un mot
-    img_url = IMAGE_DB[kw]
     filename = f"img_{i}.png"
-    print(f"Téléchargement de l'image pour '{kw}'...")
-    img_data = requests.get(img_url).content
-    with open(filename, "wb") as handler:
-        handler.write(img_data)
+    download_pixabay_image(kw, filename)
     img_files.append(filename)
 
-# 6. Fonction texte
+# 6. Fonction texte (identique)
 def create_text_image(text, is_yellow=False, filename="temp_text.png", is_hook=False):
     img_width, img_height = 1080, 400
     img = Image.new('RGBA', (img_width, img_height), (0, 0, 0, 0))
@@ -101,16 +109,21 @@ def create_text_image(text, is_yellow=False, filename="temp_text.png", is_hook=F
     img.save(filename)
     return filename
 
-# 7. Montage
+# 7. Montage avec fond de couleur ALÉATOIRE
 voice_audio = AudioFileClip("audio.mp3")
 duration = voice_audio.duration
 
-bg_clip = ColorClip(size=(1080, 1920), color=(10, 10, 10)).set_duration(duration)
+# 👉 On choisit une couleur de fond au hasard parmi une palette de gris/noirs
+background_colors = [(10, 10, 10), (20, 20, 20), (30, 30, 30), (40, 40, 40)]
+bg_color = random.choice(background_colors)
+print(f"Couleur de fond choisie : {bg_color}")
+
+bg_clip = ColorClip(size=(1080, 1920), color=bg_color).set_duration(duration)
 
 hook_img = create_text_image(chosen_topic.upper(), filename="hook.png", is_hook=True)
 hook_clip = ImageClip(hook_img).set_position(('center', 150)).set_duration(duration)
 
-# Gestion des images (chacune à un endroit différent, sans superposition)
+# Animation des images (apparition, zoom, flottement)
 img1 = ImageClip(img_files[0]).resize(height=300).set_start(0).set_end(4).set_position((150, 600))
 img1 = img1.resize(lambda t: 1 + 0.1 * np.sin(t * 5))
 
@@ -139,7 +152,7 @@ for i, chunk in enumerate(chunks):
 video = CompositeVideoClip([bg_clip, hook_clip, img1, img2, img3] + subtitles).set_audio(voice_audio)
 video.write_videofile("short.mp4", fps=24, codec="libx264", audio_codec="aac", preset="ultrafast")
 
-# 8. Upload
+# 8. Upload sur YouTube
 creds = Credentials(None, refresh_token=REFRESH_TOKEN, token_uri="https://oauth2.googleapis.com/token", client_id=CLIENT_ID, client_secret=CLIENT_SECRET)
 youtube = build('youtube', 'v3', credentials=creds)
 body = {
