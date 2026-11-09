@@ -31,13 +31,13 @@ try:
 except:
     script_text = "The system is designed to keep you poor. But there is a way out. Pay yourself first. Invest in assets, not liabilities. Start today."
 
-# 4. Voix off (On change pour "Guy" qui a une voix plus grave et on accélère un peu pour le dynamisme)
+# 4. Voix off (Voix "Guy", plus rapide)
 async def make_audio():
     communicate = edge_tts.Communicate(script_text, "en-US-GuyNeural", rate="+10%")
     await communicate.save("audio.mp3")
 asyncio.run(make_audio())
 
-# 5. Téléchargement de 3 images différentes (Banque, Argent, Graphique)
+# 5. Images
 images = {
     "money": "https://cdn-icons-png.flaticon.com/512/217/217853.png",
     "bank": "https://cdn-icons-png.flaticon.com/512/2830/2830305.png",
@@ -81,17 +81,17 @@ bg_clip = ColorClip(size=(1080, 1920), color=(10, 10, 10)).set_duration(duration
 hook_img = create_text_image(chosen_topic.upper(), filename="hook.png", is_hook=True)
 hook_clip = ImageClip(hook_img).set_position(('center', 150)).set_duration(duration)
 
-# 👉 GESTION DES IMAGES (Chacune disparaît avant que l'autre n'apparaisse)
-# Image 1 (Argent) : Apparaît à 0s, disparaît à 4s, en haut à gauche
+# 👉 GESTION DES IMAGES (Les durées sont maintenant bien définies)
+# Image 1 (Argent) : 0s à 4s
 coin_clip = ImageClip("money.png").resize(height=300).set_start(0).set_end(4).set_position((150, 600))
 coin_clip = coin_clip.resize(lambda t: 1 + 0.1 * np.sin(t * 5))
 
-# Image 2 (Banque) : Apparaît à 4s, disparaît à 8s, en bas à droite
+# Image 2 (Banque) : 4s à 8s
 bank_clip = ImageClip("bank.png").resize(height=300).set_start(4).set_end(8).set_position((650, 1000))
-bank_clip = bank_clip.resize(lambda t: 0.5 + 0.5 * np.minimum(1, t * 5)) # Effet pop-in
+bank_clip = bank_clip.resize(lambda t: 0.5 + 0.5 * np.minimum(1, t * 5))
 
-# Image 3 (Graphique) : Apparaît à 8s jusqu'à la fin, à gauche
-chart_clip = ImageClip("chart.png").resize(height=400).set_start(8).set_position((100, 900))
+# Image 3 (Graphique) : De 8s jusqu'à la fin (durée = duration - 8)
+chart_clip = ImageClip("chart.png").resize(height=400).set_start(8).set_duration(duration - 8).set_position((100, 900))
 chart_clip = chart_clip.set_position(lambda t: (100, 900 + 20 * np.sin(t * 3)))
 
 # Sous-titres
